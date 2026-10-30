@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String            @id @default(cuid())
+  email        String            @unique
+  name         String?
+  passwordHash String
+  platformRole PlatformRole      @default(STORE_USER)
+  ownedStores  Store[]           @relation("StoreOwner")
+  memberships  StoreMembership[]
+  createdAt    DateTime          @default(now())
+}
+
+enum PlatformRole {
+  PLATFORM_ADMIN
+  STORE_USER
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+model Plan {
+  id                String         @id @default(cuid())
+  code              String         @unique
+  name              String
+  priceMonthly      Decimal        @db.Decimal(14, 2)
+  maxUsers          Int            @default(2)
+  maxDevices        Int            @default(2)
+  maxProducts       Int            @default(1000)
+  enabled           Boolean        @default(true)
+  subscriptions     Subscription[]
+  createdAt         DateTime       @default(now())
+}
+
+model Store {
+  id        String    @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User      @relation("StoreOwner", fields: [ownerId], references: [id])
+  memberships StoreMembership[]
+  subscription Subscription?
+  createdAt DateTime  @default(now())
+  products  Product[]
+  sales     Sale[]
+  expenses  Expense[]
+  stockMoves StockMove[]
+  syncEvents SyncEvent[]
+}
+
+model StoreMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  storeId   String
+  role      String   @default("CASHIER")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, storeId])
+  @@index([storeId, role])
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  storeId               String             @unique
+  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  planId                String
+  plan                  Plan               @relation(fields: [planId], references: [id])
+  status                SubscriptionStatus @default(TRIAL)
+  startedAt             DateTime           @default(now())
+  currentPeriodEnd      DateTime?
+  trialEndsAt           DateTime?
+  externalPaymentRef    String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  @@index([status, currentPeriodEnd])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  barcode   String
+  name      String
+  unit      String   @default("pcs")
+  price     Decimal  @db.Decimal(14, 2)
+  cost      Decimal  @db.Decimal(14, 2)
+  stock     Decimal  @default(0) @db.Decimal(14, 3)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@unique([storeId, barcode])
+  @@index([storeId, name])
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  storeId       String
+  store         Store      @relation(fields: [storeId], references: [id])
+  receiptNo     String
+  total         Decimal    @db.Decimal(14, 2)
+  paid          Decimal    @db.Decimal(14, 2)
+  change        Decimal    @db.Decimal(14, 2)
+  fiscalStatus  String     @default("pending")
+  fiscalReceipt String?
+  createdAt     DateTime   @default(now())
+  items         SaleItem[]
+  @@unique([storeId, receiptNo])
+  @@index([storeId, createdAt])
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  barcode   String
+  name      String
+  qty       Decimal @db.Decimal(14, 3)
+  price     Decimal @db.Decimal(14, 2)
+  cost      Decimal @db.Decimal(14, 2)
+}
+
+model StockMove {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  productId String
+  kind      String
+  qty       Decimal  @db.Decimal(14, 3)
+  unitCost  Decimal  @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now())
+  @@index([storeId, productId, createdAt])
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  category  String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now())
+  @@index([storeId, createdAt])
+}
+
+model SyncEvent {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  deviceId    String
+  operationId String
+  entityType  String
+  entityId    String
+  payload     Json
+  syncedAt    DateTime @default(now())
+  @@unique([storeId, operationId])
+  @@index([storeId, deviceId, syncedAt])
+}
