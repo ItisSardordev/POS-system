@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 
 export type Product = { id?: number; barcode: string; name: string; unit: 'pcs' | 'kg' | 'g' | 'l'; price: number; cost: number; stock: number; updatedAt: string };
-export type Sale = { id?: number; receiptNo: string; items: { productId: number; barcode: string; name: string; qty: number; price: number; cost: number }[]; total: number; paid: number; change: number; createdAt: string; fiscalStatus: 'not_fiscalized' };
+export type Sale = { id?: number; receiptNo: string; items: { productId: number; barcode: string; name: string; qty: number; price: number; cost: number }[]; total: number; paid: number; change: number; createdAt: string; fiscalStatus: 'not_fiscalized'; registerId?: string; cashierId?: string; shiftId?: string };
 export type StockMove = { id?: number; productId: number; kind: 'purchase' | 'writeoff' | 'sale' | 'adjustment'; qty: number; unitCost: number; note: string; createdAt: string };
 export type Expense = { id?: number; category: string; amount: number; note: string; createdAt: string };
 

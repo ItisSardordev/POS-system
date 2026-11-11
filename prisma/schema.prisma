@@ -15,6 +15,8 @@ model User {
   platformRole PlatformRole      @default(STORE_USER)
   ownedStores  Store[]           @relation("StoreOwner")
   memberships  StoreMembership[]
+  cashierSales Sale[] @relation("SaleCashier")
+  cashShifts CashShift[]
   createdAt    DateTime          @default(now())
 }
 
@@ -50,6 +52,8 @@ model Store {
   ownerId   String
   owner     User      @relation("StoreOwner", fields: [ownerId], references: [id])
   memberships StoreMembership[]
+  registers Register[]
+  cashShifts CashShift[]
   subscription Subscription?
   createdAt DateTime  @default(now())
   products  Product[]
@@ -66,6 +70,7 @@ model StoreMembership {
   role      String   @default("CASHIER")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  registerAssignments CashierAssignment[]
   createdAt DateTime @default(now())
   @@unique([userId, storeId])
   @@index([storeId, role])
@@ -114,6 +119,10 @@ model Sale {
   fiscalStatus  String     @default("pending")
   fiscalReceipt String?
   createdAt     DateTime   @default(now())
+  registerId    String?
+  cashierId     String?
+  register      Register?  @relation(fields: [registerId], references: [id], onDelete: SetNull)
+  cashier       User?      @relation("SaleCashier", fields: [cashierId], references: [id], onDelete: SetNull)
   items         SaleItem[]
   @@unique([storeId, receiptNo])
   @@index([storeId, createdAt])
@@ -167,4 +176,48 @@ model SyncEvent {
   syncedAt    DateTime @default(now())
   @@unique([storeId, operationId])
   @@index([storeId, deviceId, syncedAt])
+}
+
+
+model Register {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  code        String
+  active      Boolean  @default(true)
+  assignments CashierAssignment[]
+  sales       Sale[]
+  shifts      CashShift[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([storeId, code])
+  @@index([storeId, active])
+}
+
+model CashierAssignment {
+  id           String          @id @default(cuid())
+  membershipId String
+  registerId   String
+  membership   StoreMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  register     Register        @relation(fields: [registerId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  @@unique([membershipId, registerId])
+  @@index([registerId])
+}
+
+model CashShift {
+  id          String   @id @default(cuid())
+  storeId     String
+  registerId  String
+  cashierId   String
+  cashier     User     @relation(fields: [cashierId], references: [id], onDelete: Restrict)
+  openedAt    DateTime @default(now())
+  closedAt    DateTime?
+  openingCash Decimal  @db.Decimal(14, 2) @default(0)
+  closingCash Decimal? @db.Decimal(14, 2)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  register    Register @relation(fields: [registerId], references: [id], onDelete: Restrict)
+  @@index([storeId, openedAt])
+  @@index([registerId, closedAt])
 }

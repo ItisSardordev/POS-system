@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       const user = await tx.user.create({ data: { email, name, passwordHash } });
       const store = await tx.store.create({ data: { name, ownerId: user.id } });
       await tx.storeMembership.create({ data: { userId: user.id, storeId: store.id, role: 'OWNER' } });
+      await tx.register.create({ data: { storeId: store.id, name: 'Asosiy kassa', code: 'POS-01' } });
       const subscription = await tx.subscription.create({ data: { storeId: store.id, planId: plan.id, status: trialDays > 0 ? 'TRIAL' : 'ACTIVE', startedAt: new Date(), trialEndsAt: trialDays > 0 ? end : null, currentPeriodEnd: trialDays > 0 ? end : new Date(Date.now() + 30 * 86400000) } });
       return { storeId: store.id, subscriptionId: subscription.id };
     });

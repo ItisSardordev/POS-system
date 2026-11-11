@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-export type Session = { sub: string; role: 'PLATFORM_ADMIN' | 'STORE_USER'; storeId?: string; email: string };
+export type Session = { sub: string; role: 'PLATFORM_ADMIN' | 'STORE_USER'; storeId?: string; email: string; membershipRole?: string };
 const cookieName = 'storepos_session';
 function key() {
   const secret = process.env.SESSION_SECRET;

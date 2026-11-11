@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         memberships: {
           take: 1,
           include: {
+            registerAssignments: { include: { register: true } },
             store: {
               include: {
                 subscription: true,
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     if (!membership) return NextResponse.json({ error: 'Пользователь не привязан к магазину' }, { status: 403 });
     const sub = membership.store.subscription;
     if (!sub || ['SUSPENDED', 'CANCELLED', 'PAST_DUE'].includes(sub.status) || (sub.currentPeriodEnd && sub.currentPeriodEnd < new Date()) || (sub.status === 'TRIAL' && sub.trialEndsAt && sub.trialEndsAt < new Date())) return NextResponse.json({ error: 'Подписка магазина неактивна. Обратитесь к владельцу магазина.' }, { status: 403 });
-    await createSession({ sub: user.id, role: 'STORE_USER', storeId: membership.storeId, email: user.email });
+    await createSession({ sub: user.id, role: 'STORE_USER', storeId: membership.storeId, email: user.email, membershipRole: membership.role });
     return NextResponse.json({ ok: true, role: 'STORE_USER', redirect: '/' });
   } catch (e) {
     console.error('Login failed', e);
